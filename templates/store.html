@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesticide Store - Checkout</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .store-form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        .store-form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+        .store-form-group input, .store-form-group textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--border-solid);
+            border-radius: var(--border-radius);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            font-size: 1rem;
+            transition: all var(--transition-fast);
+        }
+        .store-form-group input:focus, .store-form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.15);
+        }
+        .product-summary {
+            background: var(--bg-tertiary);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--primary-green);
+            text-align: left;
+        }
+        .product-summary h3 {
+            color: var(--primary-green);
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .product-price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-top: 1rem;
+        }
+        .payment-methods {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .payment-option input[type="radio"] { display: none; }
+        .payment-label {
+            display: block;
+            padding: 1.5rem;
+            border: 2px solid var(--border-solid);
+            border-radius: var(--border-radius);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            background: var(--bg-card);
+            font-weight: 600;
+        }
+        .payment-option input[type="radio"]:checked + .payment-label {
+            border-color: var(--primary-green);
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--primary-green);
+        }
+        .payment-label i {
+            display: block;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+        .payment-option input[type="radio"]:checked + .payment-label i {
+            color: var(--primary-green);
+        }
+        .form-error {
+            color: #ef4444;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .error-shown { display: block; }
+        .error-input { border-color: #ef4444 !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-card" style="text-align: center;">
+            {% if product %}
+            <div class="header" style="margin-bottom: 2rem;">
+                <h1 class="title" style="font-size: 2.5rem;"><i class="fas fa-shopping-cart"></i> Checkout</h1>
+            </div>
+
+            <div class="product-summary">
+                <h3>{{ product.name }}</h3>
+                <p style="color: var(--text-secondary);">{{ product.description }}</p>
+                <div class="product-price">{{ product.price }}</div>
+            </div>
+
+            <form id="checkout-form" method="POST" action="{{ url_for('process_order', product_id=product_id) }}">
+                
+                <div class="store-form-group">
+                    <label for="name"><i class="fas fa-user"></i> Full Name *</label>
+                    <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                    <div class="form-error" id="name-error">Please enter your full name</div>
+                </div>
+
+                <div class="store-form-group">
+                    <label for="mobile"><i class="fas fa-phone"></i> Mobile Number *</label>
+                    <input type="tel" id="mobile" name="mobile" required placeholder="Enter 10-digit number" pattern="[0-9]{10}">
+                    <div class="form-error" id="mobile-error">Please enter a valid 10-digit number</div>
+                </div>
+
+                <div class="store-form-group">
+                    <label for="address"><i class="fas fa-map-marker-alt"></i> Delivery Address *</label>
+                    <textarea id="address" name="address" required placeholder="Enter complete address" rows="3"></textarea>
+                    <div class="form-error" id="address-error">Please enter your delivery address</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="store-form-group">
+                        <label for="city"><i class="fas fa-building"></i> City/Town *</label>
+                        <input type="text" id="city" name="city" required placeholder="City/Town">
+                        <div class="form-error" id="city-error">Required</div>
+                    </div>
+                    <div class="store-form-group">
+                        <label for="pincode"><i class="fas fa-envelope"></i> Pincode *</label>
+                        <input type="text" id="pincode" name="pincode" required placeholder="6-digit PIN" pattern="[0-9]{6}">
+                        <div class="form-error" id="pincode-error">Required</div>
+                    </div>
+                </div>
+
+                <div class="store-form-group">
+                    <label style="margin-top: 1rem; margin-bottom: 1rem; font-size: 1.2rem;"><i class="fas fa-credit-card"></i> Payment Method *</label>
+                    <div class="payment-methods">
+                        <div class="payment-option">
+                            <input type="radio" id="online" name="payment_mode" value="online" required>
+                            <label for="online" class="payment-label">
+                                <i class="fas fa-credit-card"></i>
+                                <span>Online Payment</span>
+                            </label>
+                        </div>
+                        <div class="payment-option">
+                            <input type="radio" id="cash" name="payment_mode" value="cash">
+                            <label for="cash" class="payment-label">
+                                <i class="fas fa-money-bill-wave"></i>
+                                <span>Cash on Delivery</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons" style="margin-top: 2rem;">
+                    <a href="/" class="reset-btn" style="text-decoration: none;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                    <button type="submit" class="analyze-btn" id="submit-btn" style="border: none;">
+                        <i class="fas fa-check-circle"></i> Complete Order
+                    </button>
+                </div>
+            </form>
+
+            {% else %}
+            <div class="header">
+                <h1 class="title" style="color: #ef4444;">Product Not Found</h1>
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">The requested product is not available.</p>
+            <div class="action-buttons">
+                <a href="/" class="reset-btn" style="text-decoration: none;">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button id="theme-toggle" class="theme-btn">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <script>
+        // Theme toggle logic (minimal version)
+        const themeBtn = document.getElementById('theme-toggle');
+        const root = document.documentElement;
+        
+        themeBtn.addEventListener('click', () => {
+            const isDark = root.getAttribute('data-theme') === 'dark';
+            root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            themeBtn.innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        });
+
+        // Form Validation
+        const form = document.getElementById('checkout-form');
+        if(form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                let isValid = true;
+                
+                document.querySelectorAll('.form-error').forEach(el => el.classList.remove('error-shown'));
+                document.querySelectorAll('input, textarea').forEach(el => el.classList.remove('error-input'));
+                
+                const name = document.getElementById('name').value.trim();
+                if (!name || name.length < 3) {
+                    document.getElementById('name-error').classList.add('error-shown');
+                    document.getElementById('name').classList.add('error-input');
+                    isValid = false;
+                }
+                
+                const mobile = document.getElementById('mobile').value.trim();
+                if (!/^[0-9]{10}$/.test(mobile)) {
+                    document.getElementById('mobile-error').classList.add('error-shown');
+                    document.getElementById('mobile').classList.add('error-input');
+                    isValid = false;
+                }
+                
+                const address = document.getElementById('address').value.trim();
+                if (!address || address.length < 5) {
+                    document.getElementById('address-error').classList.add('error-shown');
+                    document.getElementById('address').classList.add('error-input');
+                    isValid = false;
+                }
+                
+                const city = document.getElementById('city').value.trim();
+                if (!city) {
+                    document.getElementById('city-error').classList.add('error-shown');
+                    document.getElementById('city').classList.add('error-input');
+                    isValid = false;
+                }
+                
+                const pincode = document.getElementById('pincode').value.trim();
+                if (!/^[0-9]{6}$/.test(pincode)) {
+                    document.getElementById('pincode-error').classList.add('error-shown');
+                    document.getElementById('pincode').classList.add('error-input');
+                    isValid = false;
+                }
+                
+                const paymentMode = document.querySelector('input[name="payment_mode"]:checked');
+                if (!paymentMode) isValid = false;
+                
+                if (isValid) {
+                    if (paymentMode.value === 'online') {
+                        const formData = new FormData(form);
+                        const data = {
+                            name: formData.get('name'),
+                            mobile: formData.get('mobile'),
+                            address: formData.get('address'),
+                            city: formData.get('city'),
+                            pincode: formData.get('pincode'),
+                            payment_mode: formData.get('payment_mode')
+                        };
+                        sessionStorage.setItem('orderData', JSON.stringify(data));
+                        window.location.href = "{{ url_for('payment_page', product_id=product_id) }}";
+                    } else {
+                        form.submit();
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

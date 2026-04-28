@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - Pesticide Store</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .success-icon {
+            width: 80px; height: 80px;
+            background: linear-gradient(135deg, var(--primary-green-light), var(--primary-green));
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2.5rem; color: white;
+            box-shadow: 0 10px 20px -5px var(--primary-green);
+            animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .order-number {
+            background: var(--bg-tertiary);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            text-align: center;
+            margin: 2rem 0;
+            border: 1px dashed var(--primary-green);
+        }
+        .order-number label {
+            display: block; color: var(--text-secondary);
+            font-size: 0.85rem; text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 0.5rem; font-weight: 600;
+        }
+        .order-number strong {
+            display: block; color: var(--text-primary);
+            font-size: 1.5rem; letter-spacing: 2px;
+        }
+        .section-box {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            border: 1px solid var(--border-solid);
+            border-radius: var(--border-radius);
+            background: var(--bg-tertiary);
+        }
+        .section-box h3 {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .section-box h3 i { color: var(--primary-green); }
+        
+        .info-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+        }
+        .info-item {
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-solid);
+        }
+        .info-item label {
+            display: block; color: var(--text-secondary);
+            font-size: 0.8rem; text-transform: uppercase;
+            margin-bottom: 0.25rem; font-weight: 600;
+        }
+        .info-item p { color: var(--text-primary); font-weight: 500; }
+        
+        .timeline { margin-top: 1.5rem; }
+        .timeline-item {
+            display: flex; margin-bottom: 1.5rem;
+            position: relative;
+        }
+        .timeline-item:not(:last-child)::after {
+            content: ''; position: absolute;
+            left: 20px; top: 40px; bottom: -15px;
+            width: 2px; background: var(--border-solid);
+        }
+        .timeline-icon {
+            width: 42px; height: 42px;
+            background: var(--primary-green);
+            color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; margin-right: 1rem;
+            font-size: 1.1rem; z-index: 2;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+        }
+        .timeline-content h4 { color: var(--text-primary); font-size: 1.1rem; margin-bottom: 0.25rem; }
+        .timeline-content p { color: var(--text-secondary); font-size: 0.95rem; }
+        
+        .payment-status-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--primary-green);
+            padding: 1rem; border-radius: 8px;
+            display: flex; align-items: center; gap: 0.75rem;
+            font-weight: 600; margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-card">
+            <div class="header">
+                <div class="success-icon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h1 class="title" style="font-size: 2.25rem;">Order Placed Successfully!</h1>
+                <p class="subtitle">Your order has been confirmed and will be processed shortly.</p>
+            </div>
+
+            <div class="order-number">
+                <label>Order ID</label>
+                <strong>#ORD{{ range(10000, 99999) | random }}</strong>
+            </div>
+
+            {% if payment_mode == 'online' %}
+            <div class="payment-status-badge">
+                <i class="fas fa-check-circle" style="font-size: 1.25rem;"></i>
+                <span>Payment successful via Online Demo</span>
+            </div>
+            {% else %}
+            <div class="payment-status-badge" style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: var(--accent-orange-dark);">
+                <i class="fas fa-money-bill-wave" style="font-size: 1.25rem;"></i>
+                <span>Payment mode: Cash on Delivery</span>
+            </div>
+            {% endif %}
+
+            {% if product %}
+            <div class="section-box">
+                <h3><i class="fas fa-box"></i> Product Details</h3>
+                <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-solid);">
+                    <h4 style="color: var(--text-primary); font-size: 1.1rem; margin-bottom: 0.5rem;">{{ product.name }}</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">{{ product.description }}</p>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: var(--primary-green);">{{ product.price }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if order_data %}
+            <div class="section-box">
+                <h3><i class="fas fa-map-marker-alt"></i> Delivery Address</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Recipient Name</label>
+                        <p>{{ order_data.customer_name }}</p>
+                    </div>
+                    <div class="info-item">
+                        <label>Mobile Number</label>
+                        <p>{{ order_data.mobile }}</p>
+                    </div>
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <label>Address</label>
+                        <p>{{ order_data.address }}</p>
+                    </div>
+                    <div class="info-item">
+                        <label>City/Town</label>
+                        <p>{{ order_data.city }}</p>
+                    </div>
+                    <div class="info-item">
+                        <label>Pincode</label>
+                        <p>{{ order_data.pincode }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="section-box">
+                <h3><i class="fas fa-tasks"></i> What Happens Next?</h3>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-icon"><i class="fas fa-check"></i></div>
+                        <div class="timeline-content">
+                            <h4>Order Confirmed</h4>
+                            <p>Your order has been logged in our system.</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon" style="background: var(--accent-orange);"><i class="fas fa-box-open"></i></div>
+                        <div class="timeline-content">
+                            <h4>Processing</h4>
+                            <p>We are packing your pesticide with care.</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon" style="background: #3b82f6;"><i class="fas fa-truck"></i></div>
+                        <div class="timeline-content">
+                            <h4>Out for Delivery</h4>
+                            <p>It will reach your location in 3-5 business days.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons" style="margin-top: 3rem;">
+                <a href="/" class="analyze-btn" style="text-decoration: none; border: none; width: 100%;">
+                    <i class="fas fa-home"></i> Back to Disease Detection
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button id="theme-toggle" class="theme-btn">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <script>
+        const themeBtn = document.getElementById('theme-toggle');
+        const root = document.documentElement;
+        themeBtn.addEventListener('click', () => {
+            const isDark = root.getAttribute('data-theme') === 'dark';
+            root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            themeBtn.innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        });
+    </script>
+</body>
+</html>

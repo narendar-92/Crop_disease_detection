@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Crop Disease Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">Smart Crop Disease Detection and Advisory System</h1>
+            <p class="subtitle">Upload crop leaf images to detect diseases using AI</p>
+        </header>
+
+        <main class="main-card">
+            {% if warning %}
+            <div class="warning-banner">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>{{ warning }}</span>
+            </div>
+            {% endif %}
+
+            <div class="upload-section">
+                <div class="crop-selector">
+                    <label for="crop-select">Select Crop Type:</label>
+                    <select id="crop-select" name="crop" required>
+                        <option value="Corn" {% if selected_crop == "Corn" %}selected{% endif %}>Corn (Maize)</option>
+                        <option value="Paddy" {% if selected_crop == "Paddy" %}selected{% endif %}>Paddy</option>
+                        <option value="Cotton" {% if selected_crop == "Cotton" %}selected{% endif %}>Cotton</option>
+                    </select>
+                </div>
+
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-content">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <h3>Drag & Drop Images Here</h3>
+                        <p>or <span class="browse-link">browse files</span></p>
+                        <p class="upload-hint">Supports: PNG, JPG, JPEG, WEBP (max 1 file)</p>
+                    </div>
+                    <input type="file" id="file-input" name="image" accept=".png,.jpg,.jpeg,.webp" style="display: none;">
+                </div>
+
+                <div class="preview-section" id="preview-section" style="display: none;">
+                    <h4>Selected Images</h4>
+                    <div class="image-grid" id="image-grid"></div>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="button" class="analyze-btn" id="analyze-btn" disabled>
+                        <i class="fas fa-search"></i>
+                        Analyze Disease
+                    </button>
+                    <button type="button" class="reset-btn" id="reset-btn" style="display: none;">
+                        <i class="fas fa-redo"></i>
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <div class="results-section" id="results-section" style="{% if prediction %}display: block;{% else %}display: none;{% endif %}">
+                <div class="result-card">
+                    <div class="result-header">
+                        <h3>Disease Detection Results</h3>
+                        <div class="status-badge success">Analysis Complete</div>
+                    </div>
+
+                    <div class="disease-info" id="disease-info">
+                        <div class="disease-name">
+                            <i class="fas fa-leaf"></i>
+                            <span id="disease-name">{{ prediction|default('Loading...') }}</span>
+                        </div>
+
+                        <div class="confidence-section">
+                            <div class="confidence-label">
+                                <span>Confidence Score</span>
+                                <span id="confidence-value">{% if confidence %}{{ confidence }}{% else %}0{% endif %}%</span>
+                            </div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill {% if confidence and confidence >= 75 %}high{% elif confidence and confidence >= 50 %}medium{% else %}low{% endif %}" id="confidence-fill" style="width: {% if confidence %}{{ confidence }}{% else %}0{% endif %}%"></div>
+                            </div>
+                        </div>
+
+                        {% if advice %}
+                        <div class="severity-badge {% if advice.severity == 'High' %}high{% elif advice.severity == 'Moderate' %}moderate{% else %}low{% endif %}">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ advice.severity }} Risk
+                        </div>
+                        {% else %}
+                        <div class="severity-badge">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Analyzing...
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if heatmap_url %}
+                    <div class="explainable-ai-section">
+                        <h4><i class="fas fa-eye"></i> Explainable AI (Grad-CAM)</h4>
+                        <p class="explainable-desc">The heatmap highlights the specific areas of the leaf that the AI focused on to make this prediction. Red areas indicate high focus, while blue areas indicate low focus.</p>
+                        <div class="heatmap-comparison">
+                            <div class="heatmap-container">
+                                <img src="{{ image_url }}" alt="Original Image" class="gradcam-img">
+                                <span class="heatmap-label">Original Image</span>
+                            </div>
+                            <div class="heatmap-container">
+                                <img src="{{ heatmap_url }}" alt="Grad-CAM Heatmap" class="gradcam-img">
+                                <span class="heatmap-label">AI Focus Heatmap</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if advice %}
+                    <div class="advice-section" id="advice-section">
+                        <div class="advice-card">
+                            <h4><i class="fas fa-microscope"></i> Disease Cause</h4>
+                            <p id="disease-cause">{{ advice.cause }}</p>
+                        </div>
+                        
+                        <div class="advice-card">
+                            <h4><i class="fas fa-info-circle"></i> Symptoms Description</h4>
+                            <p id="disease-description">{{ advice.description }}</p>
+                        </div>
+
+                        <div class="advice-card">
+                            <h4><i class="fas fa-chart-line"></i> Estimated Progression (7-10 Days)</h4>
+                            <p id="disease-progression">{{ advice.progression }}</p>
+                        </div>
+
+                        <div class="advice-card">
+                            <h4><i class="fas fa-seedling"></i> Organic Alternatives</h4>
+                            <p id="organic-alternatives">{{ advice.organic_alternatives }}</p>
+                        </div>
+
+                        <div class="advice-card">
+                            <h4><i class="fas fa-medkit"></i> Chemical Treatment</h4>
+                            <p id="treatment-recommendation">{{ advice.pesticide }}</p>
+                        </div>
+
+                        <div class="advice-card">
+                            <h4><i class="fas fa-clock"></i> Best Spraying Time</h4>
+                            <p id="spray-time">{{ advice.spray_time }}</p>
+                        </div>
+
+                        <div class="advice-card" style="grid-column: 1 / -1;">
+                            <h4><i class="fas fa-shield-alt"></i> Prevention Tips</h4>
+                            <p id="prevention-tips">{{ advice.prevention }}</p>
+                        </div>
+
+                        {% if product %}
+                        <div class="product-card" id="ecommerce-card">
+                            <div class="product-header">
+                                <h4><i class="fas fa-shopping-bag"></i> Recommended Product</h4>
+                                <span class="stock-badge">In Stock</span>
+                            </div>
+                            <div class="product-content-area">
+                                <div class="product-icon">
+                                    <i class="fas fa-flask"></i>
+                                </div>
+                                <div class="product-details">
+                                    <h5 class="product-title">{{ product.name }}</h5>
+                                    <p class="product-desc">{{ product.description }}</p>
+                                    <div class="product-price">{{ product.price }}</div>
+                                </div>
+                                <div class="product-action">
+                                    <a href="{{ url_for('store', product_id=advice.store_id) }}" class="buy-button">
+                                        <i class="fas fa-shopping-cart"></i> Buy Now
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="disclaimer">
+                            <i class="fas fa-exclamation-circle"></i>
+                            This is an AI-based advisory. Please consult a local agricultural expert before applying chemicals.
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+
+        <div class="theme-toggle">
+            <button id="theme-toggle" class="theme-btn">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </div>
+
+    <form id="prediction-form" method="POST" enctype="multipart/form-data" style="display: none;">
+        <input type="hidden" name="crop" id="form-crop">
+        <input type="file" name="image" id="form-image">
+    </form>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
