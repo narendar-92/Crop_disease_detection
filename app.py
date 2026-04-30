@@ -29,12 +29,13 @@ try:
     corn_model = load_model("models/corn_model.h5")
     paddy_model = load_model("models/paddy_model.h5")
     cotton_model = load_model("models/cotton_model.keras")
+    mixed_model = load_model("models/crop_disease_model.keras")
     MODELS_LOADED = True
 except Exception as e:
     print(f"Warning: Could not load models: {e}")
     print("Running in demo mode with mock predictions")
     MODELS_LOADED = False
-    corn_model = paddy_model = cotton_model = None
+    corn_model = paddy_model = cotton_model = mixed_model = None
 
 # ===============================
 # Class Names
@@ -57,11 +58,44 @@ paddy_classes = [
 
 cotton_classes = ["bacterial_blight", "curl_virus", "fussarium_wilt", "healthy"]
 
+mixed_classes = [
+    "Pepper__bell___Bacterial_spot",
+    "Pepper__bell___healthy",
+    "Potato___Early_blight",
+    "Potato___Late_blight",
+    "Potato___healthy",
+    "Tomato_Bacterial_spot",
+    "Tomato_Early_blight",
+    "Tomato_Late_blight",
+    "Tomato_Leaf_Mold",
+    "Tomato_Septoria_leaf_spot",
+    "Tomato_Spider_mites_Two_spotted_spider_mite",
+    "Tomato__Target_Spot",
+    "Tomato__Tomato_YellowLeaf__Curl_Virus",
+    "Tomato__Tomato_mosaic_virus",
+    "Tomato_healthy",
+]
+
 # ===============================
 # Disease + Store Info
 # ===============================
 
 disease_info = {
+    'Pepper__bell___Bacterial_spot': {'description': 'Small dark brown to black water-soaked spots appear on leaves.', 'cause': 'Specific pathogen related to Pepper  bell   Bacterial spot', 'pesticide': 'Spray copper oxychloride 2.5-3 g per liter of water. Rotate with copper hydroxide plus mancozeb where labels allow. Repeat spray at 7 day interval during active spread.', 'organic_alternatives': 'Spray neem oil 3-5 ml per liter with proper emulsifier. Use Bacillus-based bio-products if locally available. Remove badly infected leaves before organic spray.', 'prevention': 'Avoid overhead irrigation and keep foliage dry as much as possible.', 'spray_time': 'Do not spray before rainfall; restart protection after heavy rain washes deposits away.', 'severity': 'High', 'progression': 'Older leaves dry early and plant vigor starts dropping.', 'store_id': 'copper_oxychloride'},
+    'Pepper__bell___healthy': {'description': 'Crop appears healthy.', 'cause': 'N/A', 'pesticide': 'No pesticide required.', 'organic_alternatives': 'N/A', 'prevention': 'Continue regular monitoring.', 'spray_time': 'N/A', 'severity': 'Safe', 'progression': 'Expected to remain healthy.', 'store_id': None},
+    'Potato___Early_blight': {'description': 'Brown circular spots with concentric ring pattern appear first on older leaves.', 'cause': 'Specific pathogen related to Potato   Early blight', 'pesticide': 'Start protectant fungicide spray with mancozeb 2-2.5 g/L. Rotate with chlorothalonil or azoxystrobin as per local label. Maintain 7 day spray interval under strong disease pressure.', 'organic_alternatives': 'Spray neem extract or compost tea only after removing infected lower leaves. Mulch soil to reduce spore splash to new leaves. Improve airflow by pruning dense lower canopy.', 'prevention': 'Use furrow or drip irrigation and avoid evening leaf wetness.', 'spray_time': 'Warm humid weather increases infection, so maintain preventive cover before long cloudy spells.', 'severity': 'High', 'progression': 'Defoliation increases as the disease moves upward.', 'store_id': 'mancozeb'},
+    'Potato___Late_blight': {'description': 'Large water-soaked lesions spread quickly on leaves.', 'cause': 'Specific pathogen related to Potato   Late blight', 'pesticide': 'Use systemic plus contact fungicide mix recommended for late blight. Common options include metalaxyl + mancozeb or cymoxanil + mancozeb as per label. Repeat at 5-7 day interval during cool wet periods.', 'organic_alternatives': 'Remove infected leaves immediately to lower inoculum. Improve drainage and reduce standing moisture around plants. Use copper-based organic-compatible sprays where permitted.', 'prevention': 'Stop overhead irrigation and keep field drainage open.', 'spray_time': 'Cool cloudy and wet weather can trigger explosive spread; maintain protective spray before such windows.', 'severity': 'High', 'progression': 'Leaves collapse rapidly and infection can move to stems and fruits or tubers.', 'store_id': 'copper_oxychloride'},
+    'Potato___healthy': {'description': 'Crop appears healthy.', 'cause': 'N/A', 'pesticide': 'No pesticide required.', 'organic_alternatives': 'N/A', 'prevention': 'Continue regular monitoring.', 'spray_time': 'N/A', 'severity': 'Safe', 'progression': 'Expected to remain healthy.', 'store_id': None},
+    'Tomato_Bacterial_spot': {'description': 'Small dark brown to black water-soaked spots appear on leaves.', 'cause': 'Specific pathogen related to Tomato Bacterial spot', 'pesticide': 'Spray copper oxychloride 2.5-3 g per liter of water. Rotate with copper hydroxide plus mancozeb where labels allow. Repeat spray at 7 day interval during active spread.', 'organic_alternatives': 'Spray neem oil 3-5 ml per liter with proper emulsifier. Use Bacillus-based bio-products if locally available. Remove badly infected leaves before organic spray.', 'prevention': 'Avoid overhead irrigation and keep foliage dry as much as possible.', 'spray_time': 'Do not spray before rainfall; restart protection after heavy rain washes deposits away.', 'severity': 'High', 'progression': 'Older leaves dry early and plant vigor starts dropping.', 'store_id': 'copper_oxychloride'},
+    'Tomato_Early_blight': {'description': 'Brown circular spots with concentric ring pattern appear first on older leaves.', 'cause': 'Specific pathogen related to Tomato Early blight', 'pesticide': 'Start protectant fungicide spray with mancozeb 2-2.5 g/L. Rotate with chlorothalonil or azoxystrobin as per local label. Maintain 7 day spray interval under strong disease pressure.', 'organic_alternatives': 'Spray neem extract or compost tea only after removing infected lower leaves. Mulch soil to reduce spore splash to new leaves. Improve airflow by pruning dense lower canopy.', 'prevention': 'Use furrow or drip irrigation and avoid evening leaf wetness.', 'spray_time': 'Warm humid weather increases infection, so maintain preventive cover before long cloudy spells.', 'severity': 'High', 'progression': 'Defoliation increases as the disease moves upward.', 'store_id': 'mancozeb'},
+    'Tomato_Late_blight': {'description': 'Large water-soaked lesions spread quickly on leaves.', 'cause': 'Specific pathogen related to Tomato Late blight', 'pesticide': 'Use systemic plus contact fungicide mix recommended for late blight. Common options include metalaxyl + mancozeb or cymoxanil + mancozeb as per label. Repeat at 5-7 day interval during cool wet periods.', 'organic_alternatives': 'Remove infected leaves immediately to lower inoculum. Improve drainage and reduce standing moisture around plants. Use copper-based organic-compatible sprays where permitted.', 'prevention': 'Stop overhead irrigation and keep field drainage open.', 'spray_time': 'Cool cloudy and wet weather can trigger explosive spread; maintain protective spray before such windows.', 'severity': 'High', 'progression': 'Leaves collapse rapidly and infection can move to stems and fruits or tubers.', 'store_id': 'copper_oxychloride'},
+    'Tomato_Leaf_Mold': {'description': 'Pale green to yellow patches appear on the upper leaf surface.', 'cause': 'Specific pathogen related to Tomato Leaf Mold', 'pesticide': 'Use a labeled fungicide such as chlorothalonil or mancozeb with full canopy coverage. Repeat at 5-7 day interval if greenhouse humidity stays high. Target the underside of leaves where mold growth is strongest.', 'organic_alternatives': 'Remove infected leaves and improve ventilation immediately. Use bio-fungicide products only after lowering humidity around the crop. Avoid overcrowded pruning that traps moisture inside the canopy.', 'prevention': 'Water early in the day and avoid overhead irrigation that keeps leaves wet for long hours.', 'spray_time': 'High humidity and poor ventilation favor fast leaf mold development, especially in protected structures.', 'severity': 'High', 'progression': 'Leaves curl, dry and drop when humidity stays high.', 'store_id': 'mancozeb'},
+    'Tomato_Septoria_leaf_spot': {'description': 'Many small round spots with grey centers appear on older leaves.', 'cause': 'Specific pathogen related to Tomato Septoria leaf spot', 'pesticide': 'Begin a protectant fungicide schedule with mancozeb or chlorothalonil. Repeat at 5-7 day interval during continued spotting pressure. Cover lower leaves well because infection usually starts from the bottom canopy.', 'organic_alternatives': 'Remove infected lower leaves and keep mulch over exposed soil. Use compost extract or bio-fungicide only after sanitation and pruning. Keep tools clean and avoid working in the field while leaves are wet.', 'prevention': 'Use drip or furrow irrigation to reduce splash from soil to lower leaves.', 'spray_time': 'Rain splash and long periods of leaf wetness will increase new spot formation.', 'severity': 'High', 'progression': 'Heavy spotting leads to fast leaf drop from the lower canopy.', 'store_id': 'mancozeb'},
+    'Tomato_Spider_mites_Two_spotted_spider_mite': {'description': 'Tiny yellow specks appear across the leaf surface.', 'cause': 'Specific pathogen related to Tomato Spider mites Two spotted spider mite', 'pesticide': 'Use a registered miticide and rotate active ingredients to avoid resistance. Ensure good spray coverage on the underside of leaves. Repeat only according to label interval after scouting.', 'organic_alternatives': 'Spray neem oil 3-5 ml/L targeting lower leaf surface. Wash hotspots with plain water in the morning where feasible. Conserve predatory mites and beneficial insects.', 'prevention': 'Maintain even moisture; drought stress usually worsens mite outbreaks.', 'spray_time': 'Hot dry weather favors mites, so scout daily in such periods.', 'severity': 'High', 'progression': 'Leaves bronze, dry and curl under heavy infestation.', 'store_id': 'abamectin'},
+    'Tomato__Target_Spot': {'description': 'Brown target-like lesions appear with clear circular zoning.', 'cause': 'Specific pathogen related to Tomato  Target Spot', 'pesticide': 'Apply a protectant plus systemic fungicide rotation suitable for target spot. Increase spray coverage in the lower and inner canopy where lesions build up first. Repeat on the labeled interval during warm humid weather.', 'organic_alternatives': 'Remove heavily spotted leaves and improve row ventilation. Use mulch to reduce movement of spores from soil splash. Avoid keeping leaves wet late into the evening.', 'prevention': 'Avoid late-day overhead irrigation and keep leaf wetness periods short.', 'spray_time': 'Warm humid conditions strongly favor new target spot lesions and lesion expansion.', 'severity': 'High', 'progression': 'Leaf drop increases and fruits may also show lesions.', 'store_id': 'mancozeb'},
+    'Tomato__Tomato_YellowLeaf__Curl_Virus': {'description': 'Leaves curl upward and become smaller than normal.', 'cause': 'Specific pathogen related to Tomato  Tomato YellowLeaf  Curl Virus', 'pesticide': 'There is no cure for infected leaves, so focus on vector control using recommended whitefly insecticides. Rotate systemic insecticides only according to local label guidance. Remove severely affected plants early to reduce source pressure.', 'organic_alternatives': 'Use yellow sticky traps and reflective mulch to reduce whitefly movement. Spray neem oil 3-5 ml/L to reduce vector feeding pressure. Destroy badly infected plants outside the growing area.', 'prevention': 'Maintain even moisture and avoid plant stress because stressed plants decline faster under virus pressure.', 'spray_time': 'Warm dry weather supports faster whitefly activity, so increase scouting frequency in such periods.', 'severity': 'High', 'progression': 'Plant growth slows sharply and fruit set is reduced.', 'store_id': 'imidacloprid'},
+    'Tomato__Tomato_mosaic_virus': {'description': 'Mosaic light and dark green pattern appears on leaves.', 'cause': 'Specific pathogen related to Tomato  Tomato mosaic virus', 'pesticide': 'No curative spray will fix infected leaves, so remove infected plants and focus on sanitation. Disinfect tools, trays, and support wires after working in affected rows. Control sap-sucking pests when needed, based on local scouting.', 'organic_alternatives': 'Wash hands with soap before handling healthy plants after touching infected ones. Use clean seedlings and avoid tobacco contamination near tomato plants. Rogue badly infected plants and dispose of them away from the crop.', 'prevention': 'Maintain steady irrigation to reduce plant stress but avoid moving sap through rough handling during wet operations.', 'spray_time': 'Handling plants in warm dry weather can still spread contamination if tools and hands are not cleaned.', 'severity': 'High', 'progression': 'Plants show stunting and uneven canopy growth.', 'store_id': None},
+    'Tomato_healthy': {'description': 'Crop appears healthy.', 'cause': 'N/A', 'pesticide': 'No pesticide required.', 'organic_alternatives': 'N/A', 'prevention': 'Continue regular monitoring.', 'spray_time': 'N/A', 'severity': 'Safe', 'progression': 'Expected to remain healthy.', 'store_id': None},
     "common_rust": {
         "description": "Reddish-brown pustules on leaves.",
         "cause": "Fungal infection (Puccinia sorghi) favored by high humidity and cool temperatures.",
@@ -256,6 +290,7 @@ disease_info = {
 # ===============================
 
 store_products = {
+    'abamectin': {'name': 'Abamectin 1.9% EC', 'price': 'INR 1500 per liter', 'description': 'Effective miticide and insecticide.'},
     "propiconazole": {
         "name": "Propiconazole 25% EC",
         "price": "INR 850 per liter",
@@ -321,7 +356,7 @@ def allowed_file(filename):
 # Grad-CAM Helpers
 # ===============================
 
-def make_gradcam_heatmap(img_array, model, pred_index=None):
+def make_gradcam_heatmap(img_array, model, pred_index=None, layer_name=None):
     inner_model = None
     for layer in model.layers:
         if isinstance(layer, tf.keras.Model):
@@ -336,10 +371,19 @@ def make_gradcam_heatmap(img_array, model, pred_index=None):
         top_layers = []
 
     last_conv_layer_name = None
-    for layer in reversed(base_model.layers):
-        if 'conv' in layer.name.lower() or hasattr(layer, 'filters'):
-            last_conv_layer_name = layer.name
-            break
+    if layer_name:
+        try:
+            base_model.get_layer(layer_name)
+            last_conv_layer_name = layer_name
+        except ValueError:
+            pass
+            
+    if last_conv_layer_name is None:
+        for layer in reversed(base_model.layers):
+            lname = layer.name.lower()
+            if ('conv' in lname or hasattr(layer, 'filters')) and 'bn' not in lname and 'batchnorm' not in lname:
+                last_conv_layer_name = layer.name
+                break
             
     if last_conv_layer_name is None:
         raise ValueError("Could not find a convolutional layer.")
@@ -355,6 +399,9 @@ def make_gradcam_heatmap(img_array, model, pred_index=None):
         
         for layer in top_layers:
             preds = layer(preds)
+            
+        if isinstance(preds, list):
+            preds = preds[0]
             
         if pred_index is None:
             pred_index = tf.argmax(preds[0])
@@ -423,7 +470,7 @@ def index():
             warning = "No file selected."
             return render_template("index.html", warning=warning, selected_crop=crop_type)
 
-        if crop_type not in {"Corn", "Paddy", "Cotton"}:
+        if crop_type not in {"Corn", "Paddy", "Cotton", "Tomato", "Potato", "Pepper"}:
             warning = "Please select a valid crop type."
             return render_template("index.html", warning=warning, selected_crop=None)
 
@@ -447,9 +494,12 @@ def index():
             elif crop_type == "Paddy":
                 model = paddy_model
                 classes = paddy_classes
-            else:
+            elif crop_type == "Cotton":
                 model = cotton_model
                 classes = cotton_classes
+            else:
+                model = mixed_model
+                classes = mixed_classes
 
             preds = model.predict(img_array, verbose=0)
             class_index = int(np.argmax(preds[0]))
@@ -458,7 +508,13 @@ def index():
 
             # Generate Grad-CAM Heatmap
             try:
-                heatmap = make_gradcam_heatmap(img_array, model, class_index)
+                gradcam_layer = None
+                if crop_type == "Cotton":
+                    gradcam_layer = "top_activation"
+                elif crop_type in {"Tomato", "Potato", "Pepper", "Corn", "Paddy"}:
+                    gradcam_layer = "Conv_1"
+                    
+                heatmap = make_gradcam_heatmap(img_array, model, class_index, layer_name=gradcam_layer)
                 heatmap_filename = f"heatmap_{unique_name}"
                 heatmap_path = os.path.join(app.config["UPLOAD_FOLDER"], heatmap_filename)
                 save_gradcam(filepath, heatmap, heatmap_path)
@@ -472,8 +528,10 @@ def index():
                 classes = corn_classes
             elif crop_type == "Paddy":
                 classes = paddy_classes
-            else:
+            elif crop_type == "Cotton":
                 classes = cotton_classes
+            else:
+                classes = mixed_classes
 
             prediction = random.choice(classes)
             confidence = round(random.uniform(65, 95), 2)
