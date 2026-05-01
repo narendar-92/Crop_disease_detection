@@ -7,10 +7,20 @@ try:
     import tensorflow as tf
     from tensorflow.keras.models import load_model
     from tensorflow.keras.preprocessing import image
+    from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+    from tensorflow.keras.applications.mobilenet_v2 import preprocess_input as mobilenet_preprocess
+    from tensorflow.keras.applications.mobilenet_v2 import decode_predictions
     TENSORFLOW_AVAILABLE = True
+    try:
+        print("Loading MobileNetV2 for image validation...")
+        mobilenet_model = MobileNetV2(weights='imagenet')
+    except Exception as e:
+        print(f"Could not load MobileNetV2: {e}")
+        mobilenet_model = None
 except ImportError:
     print("TensorFlow not available. Running in demo mode.")
     TENSORFLOW_AVAILABLE = False
+    mobilenet_model = None
 
 from flask import Flask, render_template, request, url_for, session, redirect
 from werkzeug.utils import secure_filename
@@ -351,6 +361,60 @@ def preprocess_for_crop(img_array, crop_type):
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def is_valid_leaf_image(filepath):
+    img_cv = cv2.imread(filepath)
+    if img_cv is None:
+        return False
+        
+    try:
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        if len(faces) > 0:
+            return False 
+    except:
+        pass
+        
+    if mobilenet_model is not None:
+        try:
+            img = image.load_img(filepath, target_size=(224, 224))
+            x = image.img_to_array(img)
+            x = np.expand_dims(x, axis=0)
+            x = mobilenet_preprocess(x)
+            
+            preds = mobilenet_model.predict(x, verbose=0)
+            decoded = decode_predictions(preds, top=5)[0]
+            
+            nature_keywords = [
+                'plant', 'leaf', 'flower', 'tree', 'fruit', 'vegetable', 'wood', 'grass', 
+                'pot', 'daisy', 'corn', 'acorn', 'squash', 'cucumber', 'artichoke', 'pepper', 
+                'cardoon', 'mushroom', 'apple', 'strawberry', 'orange', 'lemon', 'fig', 'pineapple', 
+                'banana', 'jackfruit', 'pomegranate', 'hay', 'greenhouse', 'buckeye', 'earthstar', 
+                'bolete', 'ear', 'beetle', 'bug', 'snail', 'slug', 'worm', 'ant', 'fly', 'bee', 'mantis',
+                'grasshopper', 'spider', 'web', 'nematode', 'earthworm', 'ladybug', 'butterfly', 'moth',
+                'weevil', 'lacewing', 'dragonfly', 'damselfly', 'soil', 'ground', 'dirt', 'stone',
+                'rock', 'pebble', 'sand', 'mud', 'vase', 'basket', 'pitcher', 'vine', 'fern', 'moss',
+                'rapeseed', 'broccoli', 'cauliflower', 'zucchini', 'macaw', 'lorikeet'
+            ]
+            
+            is_nature_like = False
+            for _, label, prob in decoded:
+                label_lower = label.lower().replace('_', ' ')
+                if any(kw in label_lower for kw in nature_keywords):
+                    is_nature_like = True
+                    break
+                    
+            if not is_nature_like:
+                hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+                mask = cv2.inRange(hsv, np.array([10, 20, 20]), np.array([100, 255, 255]))
+                ratio = cv2.countNonZero(mask) / (img_cv.shape[0] * img_cv.shape[1])
+                if ratio < 0.15:
+                    return False
+        except Exception as e:
+            pass
+            
+    return True
+
 
 # ===============================
 # Grad-CAM Helpers
@@ -358,7 +422,7 @@ def allowed_file(filename):
 
 def make_gradcam_heatmap(img_array, model, pred_index=None, layer_name=None):
     inner_model = None
-    for layer in model.layers:
+    for layer in reversed(model.layers):
         if isinstance(layer, tf.keras.Model):
             inner_model = layer
             break
@@ -484,6 +548,14 @@ def index():
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
         file.save(filepath)
 
+        if not is_valid_leaf_image(filepath):
+            warning = "Please upload only leaf images. Non-leaf objects detected."
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+            return render_template("index.html", warning=warning, selected_crop=crop_type)
+
         image_url = url_for("static", filename=f"uploads/{unique_name}")
         img_array = preprocess_for_crop(prepare_image(filepath), crop_type)
 
@@ -502,17 +574,28 @@ def index():
                 classes = mixed_classes
 
             preds = model.predict(img_array, verbose=0)
-            class_index = int(np.argmax(preds[0]))
-            confidence = round(float(np.max(preds[0])) * 100, 2)
+            
+            if model == mixed_model and crop_type in {"Tomato", "Potato", "Pepper"}:
+                valid_indices = [i for i, c in enumerate(classes) if c.startswith(crop_type)]
+                if valid_indices:
+                    class_index = max(valid_indices, key=lambda i: preds[0][i])
+                    valid_probs_sum = sum(preds[0][i] for i in valid_indices)
+                    if valid_probs_sum > 0:
+                        confidence = round((float(preds[0][class_index]) / valid_probs_sum) * 100, 2)
+                    else:
+                        confidence = round(float(preds[0][class_index]) * 100, 2)
+                else:
+                    class_index = int(np.argmax(preds[0]))
+                    confidence = round(float(np.max(preds[0])) * 100, 2)
+            else:
+                class_index = int(np.argmax(preds[0]))
+                confidence = round(float(np.max(preds[0])) * 100, 2)
+                
             prediction = classes[class_index]
 
             # Generate Grad-CAM Heatmap
             try:
                 gradcam_layer = None
-                if crop_type == "Cotton":
-                    gradcam_layer = "top_activation"
-                elif crop_type in {"Tomato", "Potato", "Pepper", "Corn", "Paddy"}:
-                    gradcam_layer = "Conv_1"
                     
                 heatmap = make_gradcam_heatmap(img_array, model, class_index, layer_name=gradcam_layer)
                 heatmap_filename = f"heatmap_{unique_name}"
